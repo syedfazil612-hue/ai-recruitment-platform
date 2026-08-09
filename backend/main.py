@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import List
 from database import engine, get_db, Base
 import models, schemas, auth
 
@@ -37,3 +38,19 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
 
     token = auth.create_access_token({"sub": db_user.email, "role": db_user.role})
     return {"access_token": token, "token_type": "bearer", "role": db_user.role}
+
+@app.post("/jobs", response_model=schemas.JobResponse)
+def create_job(job: schemas.JobCreate, db: Session = Depends(get_db)):
+    new_job = models.Job(
+        recruiter_id=job.recruiter_id,
+        title=job.title,
+        description=job.description
+    )
+    db.add(new_job)
+    db.commit()
+    db.refresh(new_job)
+    return new_job
+
+@app.get("/jobs", response_model=List[schemas.JobResponse])
+def get_jobs(db: Session = Depends(get_db)):
+    return db.query(models.Job).all()

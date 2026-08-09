@@ -18,3 +18,18 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class JobCreate(BaseModel):
+    recruiter_id: int
+    title: str
+    description: str
+
+
+class JobResponse(BaseModel):
+    id: int
+    recruiter_id: int
+    title: str
+    description: str
+
+    class Config:
+        from_attributes = True
