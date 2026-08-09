@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
 class UserCreate(BaseModel):
     name: str
@@ -24,12 +25,20 @@ class JobCreate(BaseModel):
     title: str
     description: str
 
-
 class JobResponse(BaseModel):
     id: int
     recruiter_id: int
     title: str
     description: str
+
+    class Config:
+        from_attributes = True
+
+class ResumeResponse(BaseModel):
+    id: int
+    candidate_id: int
+    file_path: str
+    extracted_text: Optional[str] = None
 
     class Config:
         from_attributes = True

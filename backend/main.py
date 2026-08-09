@@ -1,12 +1,18 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List
 from database import engine, get_db, Base
 import models, schemas, auth
+import pdfplumber
+import os
+import shutil
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+UPLOAD_DIR = "uploaded_resumes"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.get("/")
 def read_root():
@@ -54,3 +60,30 @@ def create_job(job: schemas.JobCreate, db: Session = Depends(get_db)):
 @app.get("/jobs", response_model=List[schemas.JobResponse])
 def get_jobs(db: Session = Depends(get_db)):
     return db.query(models.Job).all()
+
+@app.post("/upload-resume", response_model=schemas.ResumeResponse)
+def upload_resume(candidate_id: int = Form(...), file: UploadFile = File(...), db: Session = Depends(get_db)):
+    file_path = os.path.join(UPLOAD_DIR, f"{candidate_id}_{file.filename}")
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    extracted_text = ""
+    try:
+        with pdfplumber.open(file_path) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    extracted_text += text + "\n"
+    except Exception as e:
+        extracted_text = ""
+
+    new_resume = models.Resume(
+        candidate_id=candidate_id,
+        file_path=file_path,
+        extracted_text=extracted_text
+    )
+    db.add(new_resume)
+    db.commit()
+    db.refresh(new_resume)
+    return new_resume
