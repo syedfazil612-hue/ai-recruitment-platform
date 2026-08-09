@@ -87,3 +87,22 @@ def upload_resume(candidate_id: int = Form(...), file: UploadFile = File(...), d
     db.commit()
     db.refresh(new_resume)
     return new_resume
+import matching
+
+@app.post("/match", response_model=schemas.MatchResponse)
+def match_resume_to_job(request: schemas.MatchRequest, db: Session = Depends(get_db)):
+    resume = db.query(models.Resume).filter(models.Resume.id == request.resume_id).first()
+    job = db.query(models.Job).filter(models.Job.id == request.job_id).first()
+
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    score = matching.get_match_score(resume.extracted_text, job.description)
+
+    return {
+        "resume_id": resume.id,
+        "job_id": job.id,
+        "score": score
+    }
