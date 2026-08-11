@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import PostJobForm from "../components/PostJobForm";
 import ResumeUpload from "../components/ResumeUpload";
+import { API_URL } from "../config";
 
 function Dashboard() {
   const [jobs, setJobs] = useState([]);
@@ -14,7 +15,7 @@ function Dashboard() {
       navigate("/login");
       return;
     }
-    axios.get("http://127.0.0.1:8000/jobs").then((res) => {
+    axios.get(`${API_URL}/jobs`).then((res) => {
       setJobs(res.data);
     });
   }, []);
@@ -60,7 +61,7 @@ function Dashboard() {
             <button
               onClick={async () => {
                 const res = await axios.get(
-                  `http://127.0.0.1:8000/jobs/${job.id}/applicants`,
+                  `${API_URL}/jobs/${job.id}/applicants`,
                 );
                 if (res.data.length === 0) {
                   alert("No applicants yet.");
@@ -84,7 +85,7 @@ function Dashboard() {
             <button
               onClick={async () => {
                 try {
-                  await axios.post("http://127.0.0.1:8000/apply", {
+                  await axios.post(`${API_URL}/apply`, {
                     job_id: job.id,
                     candidate_id: parseInt(localStorage.getItem("user_id")),
                   });

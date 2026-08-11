@@ -42,6 +42,7 @@ class ResumeResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 class MatchRequest(BaseModel):
     resume_id: int
     job_id: int
@@ -49,4 +50,21 @@ class MatchRequest(BaseModel):
 class MatchResponse(BaseModel):
     resume_id: int
     job_id: int
+    score: float
+
+class ApplicationCreate(BaseModel):
+    job_id: int
+    candidate_id: int
+
+class ApplicationResponse(BaseModel):
+    id: int
+    job_id: int
+    resume_id: int
+
+    class Config:
+        from_attributes = True
+
+class ApplicantScore(BaseModel):
+    application_id: int
+    candidate_name: str
     score: float

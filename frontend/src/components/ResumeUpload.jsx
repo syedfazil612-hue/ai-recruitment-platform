@@ -13,7 +13,7 @@ export default function ResumeUpload() {
     formData.append("file", file);
 
     try {
-      await axios.post("http://127.0.0.1:8000/upload-resume", formData);
+      await await axios.post(`${API_URL}/upload-resume`, formData);
       setStatus("Resume uploaded successfully.");
     } catch (err) {
       setStatus(err.response?.data?.detail || "Upload failed.");

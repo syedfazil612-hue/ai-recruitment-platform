@@ -1,8 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 from database import engine, get_db, Base
-import models, schemas, auth
+import models, schemas, auth, matching
 import pdfplumber
 import os
 import shutil
@@ -10,6 +11,14 @@ import shutil
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 UPLOAD_DIR = "uploaded_resumes"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -43,7 +52,7 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = auth.create_access_token({"sub": db_user.email, "role": db_user.role})
-    return {"access_token": token, "token_type": "bearer", "role": db_user.role}
+    return {"access_token": token, "token_type": "bearer", "role": db_user.role, "user_id": db_user.id}
 
 @app.post("/jobs", response_model=schemas.JobResponse)
 def create_job(job: schemas.JobCreate, db: Session = Depends(get_db)):
@@ -87,7 +96,6 @@ def upload_resume(candidate_id: int = Form(...), file: UploadFile = File(...), d
     db.commit()
     db.refresh(new_resume)
     return new_resume
-import matching
 
 @app.post("/match", response_model=schemas.MatchResponse)
 def match_resume_to_job(request: schemas.MatchRequest, db: Session = Depends(get_db)):
@@ -106,3 +114,48 @@ def match_resume_to_job(request: schemas.MatchRequest, db: Session = Depends(get
         "job_id": job.id,
         "score": score
     }
+
+@app.post("/apply", response_model=schemas.ApplicationResponse)
+def apply_to_job(application: schemas.ApplicationCreate, db: Session = Depends(get_db)):
+    resume = db.query(models.Resume).filter(models.Resume.candidate_id == application.candidate_id).order_by(models.Resume.id.desc()).first()
+    if not resume:
+        raise HTTPException(status_code=400, detail="No resume found for this candidate")
+
+    new_application = models.Application(
+        job_id=application.job_id,
+        resume_id=resume.id
+    )
+    db.add(new_application)
+    db.commit()
+    db.refresh(new_application)
+    return new_application
+
+@app.get("/jobs/{job_id}/applicants", response_model=List[schemas.ApplicantScore])
+def get_applicants_with_scores(job_id: int, db: Session = Depends(get_db)):
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    applications = db.query(models.Application).filter(models.Application.job_id == job_id).all()
+    results = []
+
+    for app_row in applications:
+        resume = db.query(models.Resume).filter(models.Resume.id == app_row.resume_id).first()
+        candidate = db.query(models.User).filter(models.User.id == resume.candidate_id).first()
+
+        score = matching.get_match_score(resume.extracted_text, job.description)
+
+        existing_score = db.query(models.MatchScore).filter(models.MatchScore.application_id == app_row.id).first()
+        if existing_score:
+            existing_score.score = score
+        else:
+            db.add(models.MatchScore(application_id=app_row.id, score=score))
+        db.commit()
+
+        results.append({
+            "application_id": app_row.id,
+            "candidate_name": candidate.name,
+            "score": score
+        })
+
+    return results

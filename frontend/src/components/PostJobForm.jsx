@@ -1,5 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
+import { API_URL } from "../config";
 
 export default function PostJobForm({ onJobPosted }) {
   const [title, setTitle] = useState("");
@@ -10,7 +11,7 @@ export default function PostJobForm({ onJobPosted }) {
     e.preventDefault();
     try {
       const recruiterId = localStorage.getItem("user_id");
-      await axios.post("http://localhost:8000/jobs", {
+      await await axios.post(`${API_URL}/jobs`, {
         recruiter_id: recruiterId,
         title,
         description,
