@@ -1,9 +1,15 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
+import os
 
-# Replace 'yourpassword' with the PostgreSQL password you set during install
-DATABASE_URL = "postgresql://postgres:5432@localhost:5432/recruitment_db"
+load_dotenv()
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:5432@localhost:5432/recruitment_db"
+)
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
