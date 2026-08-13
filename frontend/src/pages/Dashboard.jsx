@@ -71,12 +71,10 @@ function Dashboard() {
 
       {isRecruiter ? (
         <>
-          <h3 style={{ marginTop: "25px" }}>Post a Job</h3>
           <PostJobForm onJobPosted={() => window.location.reload()} />
         </>
       ) : (
         <>
-          <h3 style={{ marginTop: "25px" }}>Upload Resume</h3>
           <ResumeUpload />
         </>
       )}
