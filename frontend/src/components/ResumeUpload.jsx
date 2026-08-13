@@ -1,5 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
+import { API_URL } from "../config";
 
 export default function ResumeUpload() {
   const [file, setFile] = useState(null);
@@ -13,7 +14,7 @@ export default function ResumeUpload() {
     formData.append("file", file);
 
     try {
-      await await axios.post(`${API_URL}/upload-resume`, formData);
+      await axios.post(`${API_URL}/upload-resume`, formData);
       setStatus("Resume uploaded successfully.");
     } catch (err) {
       setStatus(err.response?.data?.detail || "Upload failed.");
