@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import urllib.request
 import urllib.error
 from dotenv import load_dotenv
@@ -49,7 +50,11 @@ def generate_interview_questions(resume_text: str, job_description: str) -> list
 
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 800},
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 2048,
+            "thinkingConfig": {"thinkingBudget": 0},
+        },
     }
 
     req = urllib.request.Request(
@@ -80,14 +85,36 @@ def generate_interview_questions(resume_text: str, job_description: str) -> list
 
     try:
         questions = json.loads(text)
-        if not isinstance(questions, list):
+        if not isinstance(questions, list) or not questions:
             raise ValueError
-        return [str(q) for q in questions][:5]
+        return [str(q).strip() for q in questions][:5]
     except (json.JSONDecodeError, ValueError):
-        # Fallback: split by lines if the model didn't return clean JSON
-        lines = [
-            line.strip("-•1234567890. ").strip()
-            for line in text.split("\n")
-            if line.strip()
-        ]
-        return lines[:5]
+        # Fallback: the model didn't return clean single-line JSON (e.g. it
+        # pretty-printed the array across multiple lines, or the response
+        # got cut off). Strip structural JSON characters and split into
+        # individual question lines.
+        cleaned = text.strip()
+        if cleaned.startswith("["):
+            cleaned = cleaned[1:]
+        if cleaned.endswith("]"):
+            cleaned = cleaned[:-1]
+
+        raw_lines = [line.strip() for line in cleaned.split("\n") if line.strip()]
+        questions = []
+        for line in raw_lines:
+            # Drop lines that are pure JSON punctuation (e.g. a lone "[" or "]")
+            if re.fullmatch(r"[\[\]{}]*", line):
+                continue
+            # Strip leading list markers/numbering, then quotes and trailing commas
+            line = line.strip("-•").strip()
+            line = re.sub(r"^\d+[\.\)]\s*", "", line)
+            line = line.strip().rstrip(",").strip()
+            line = line.strip('"').strip()
+            if line:
+                questions.append(line)
+
+        if not questions:
+            raise RuntimeError(
+                "Gemini returned a response that could not be parsed into questions."
+            )
+        return questions[:5]
