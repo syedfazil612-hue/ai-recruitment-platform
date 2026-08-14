@@ -8,6 +8,8 @@ import { API_URL } from "../config";
 function Dashboard() {
   const [jobs, setJobs] = useState([]);
   const [applicantsByJob, setApplicantsByJob] = useState({});
+  const [questionsByApplication, setQuestionsByApplication] = useState({});
+  const [loadingQuestionsFor, setLoadingQuestionsFor] = useState(null);
   const role = localStorage.getItem("role");
   const navigate = useNavigate();
 
@@ -43,6 +45,25 @@ function Dashboard() {
       alert("Applied successfully!");
     } catch (err) {
       alert(err.response?.data?.detail || "Failed to apply.");
+    }
+  };
+
+  const handleGenerateQuestions = async (applicationId) => {
+    setLoadingQuestionsFor(applicationId);
+    try {
+      const res = await axios.post(`${API_URL}/generate-questions`, {
+        application_id: applicationId,
+      });
+      setQuestionsByApplication((prev) => ({
+        ...prev,
+        [applicationId]: res.data.questions,
+      }));
+    } catch (err) {
+      alert(
+        err.response?.data?.detail || "Failed to generate interview questions.",
+      );
+    } finally {
+      setLoadingQuestionsFor(null);
     }
   };
 
@@ -118,13 +139,50 @@ function Dashboard() {
                         >
                           <th>Candidate</th>
                           <th>Match Score</th>
+                          <th>Interview Questions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {applicantsByJob[job.id].map((a) => (
-                          <tr key={a.application_id}>
-                            <td>{a.candidate_name}</td>
-                            <td>{a.score.toFixed(1)}%</td>
+                          <tr
+                            key={a.application_id}
+                            style={{ verticalAlign: "top" }}
+                          >
+                            <td style={{ padding: "6px 0" }}>
+                              {a.candidate_name}
+                            </td>
+                            <td style={{ padding: "6px 0" }}>
+                              {a.score.toFixed(1)}%
+                            </td>
+                            <td style={{ padding: "6px 0" }}>
+                              {questionsByApplication[a.application_id] ? (
+                                <ol style={{ margin: 0, paddingLeft: "18px" }}>
+                                  {questionsByApplication[a.application_id].map(
+                                    (q, i) => (
+                                      <li
+                                        key={i}
+                                        style={{ marginBottom: "4px" }}
+                                      >
+                                        {q}
+                                      </li>
+                                    ),
+                                  )}
+                                </ol>
+                              ) : (
+                                <button
+                                  disabled={
+                                    loadingQuestionsFor === a.application_id
+                                  }
+                                  onClick={() =>
+                                    handleGenerateQuestions(a.application_id)
+                                  }
+                                >
+                                  {loadingQuestionsFor === a.application_id
+                                    ? "Generating..."
+                                    : "Generate Interview Questions"}
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
