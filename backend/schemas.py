@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 
 class UserCreate(BaseModel):
     name: str
@@ -68,3 +68,11 @@ class ApplicantScore(BaseModel):
     application_id: int
     candidate_name: str
     score: float
+
+class InterviewQuestionsRequest(BaseModel):
+    application_id: int
+
+class InterviewQuestionsResponse(BaseModel):
+    application_id: int
+    candidate_name: str
+    questions: List[str]

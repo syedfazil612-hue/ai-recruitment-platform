@@ -163,3 +163,27 @@ def get_applicants_with_scores(job_id: int, db: Session = Depends(get_db)):
         })
 
     return results
+
+@app.post("/generate-questions", response_model=schemas.InterviewQuestionsResponse)
+def generate_questions(request: schemas.InterviewQuestionsRequest, db: Session = Depends(get_db)):
+    application = db.query(models.Application).filter(models.Application.id == request.application_id).first()
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    resume = db.query(models.Resume).filter(models.Resume.id == application.resume_id).first()
+    job = db.query(models.Job).filter(models.Job.id == application.job_id).first()
+    candidate = db.query(models.User).filter(models.User.id == resume.candidate_id).first() if resume else None
+
+    if not resume or not job:
+        raise HTTPException(status_code=404, detail="Resume or job not found for this application")
+
+    try:
+        questions = matching.generate_interview_questions(resume.extracted_text, job.description)
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    return {
+        "application_id": application.id,
+        "candidate_name": candidate.name if candidate else "Unknown",
+        "questions": questions
+    }
