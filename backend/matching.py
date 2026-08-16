@@ -1,6 +1,9 @@
 import os
 import json
+import logging
+import random
 import re
+import time
 import urllib.request
 import urllib.error
 from dotenv import load_dotenv
@@ -8,6 +11,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 load_dotenv()
+logger = logging.getLogger(__name__)
+GEMINI_MAX_RETRIES = 3
+GEMINI_RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
 def get_match_score(resume_text: str, job_description: str) -> float:
@@ -64,13 +70,33 @@ def generate_interview_questions(resume_text: str, job_description: str) -> list
         method="POST",
     )
 
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            data = json.loads(resp.read().decode())
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"Gemini API error {e.code}: {e.read().decode()}")
-    except urllib.error.URLError as e:
-        raise RuntimeError(f"Could not reach Gemini API: {e}")
+    last_error = None
+    for attempt in range(1, GEMINI_MAX_RETRIES + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode())
+            break
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode(errors="replace")
+            last_error = f"Gemini API error {e.code}: {error_body}"
+            if e.code not in GEMINI_RETRYABLE_STATUS_CODES or attempt == GEMINI_MAX_RETRIES:
+                logger.exception("Gemini request failed after %s attempt(s).", attempt)
+                raise RuntimeError(last_error) from e
+        except urllib.error.URLError as e:
+            last_error = f"Could not reach Gemini API: {e}"
+            if attempt == GEMINI_MAX_RETRIES:
+                logger.exception("Gemini network request failed after %s attempt(s).", attempt)
+                raise RuntimeError(last_error) from e
+
+        delay_seconds = (2 ** (attempt - 1)) + random.uniform(0, 0.5)
+        logger.warning(
+            "Gemini request failed on attempt %s/%s; retrying in %.1f seconds. %s",
+            attempt,
+            GEMINI_MAX_RETRIES,
+            delay_seconds,
+            last_error,
+        )
+        time.sleep(delay_seconds)
 
     try:
         text = data["candidates"][0]["content"]["parts"][0]["text"].strip()

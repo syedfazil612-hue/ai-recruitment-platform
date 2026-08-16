@@ -103,99 +103,115 @@ function Dashboard() {
       <h3 style={{ marginTop: "30px" }}>
         {isRecruiter ? "Your Posted Jobs" : "Available Jobs"}
       </h3>
-      {jobs.length === 0 && <p>No jobs posted yet.</p>}
-      {jobs.map((job) => (
-        <div
-          key={job.id}
-          style={{
-            border: `1px solid ${themeColor}`,
-            borderRadius: "8px",
-            padding: "15px",
-            marginBottom: "15px",
-          }}
-        >
-          <h4 style={{ marginTop: 0 }}>{job.title}</h4>
-          <p>{job.description}</p>
+      {(() => {
+        const userId = parseInt(localStorage.getItem("user_id"));
+        const visibleJobs = isRecruiter
+          ? jobs.filter((job) => job.recruiter_id === userId)
+          : jobs;
 
-          {isRecruiter ? (
-            <>
-              <button onClick={() => handleViewApplicants(job.id)}>
-                View Applicants
-              </button>
-              {applicantsByJob[job.id] && (
-                <div style={{ marginTop: "10px" }}>
-                  {applicantsByJob[job.id].length === 0 ? (
-                    <p style={{ color: "#777" }}>No applicants yet.</p>
-                  ) : (
-                    <table
-                      style={{ width: "100%", borderCollapse: "collapse" }}
-                    >
-                      <thead>
-                        <tr
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #ccc",
-                          }}
-                        >
-                          <th>Candidate</th>
-                          <th>Match Score</th>
-                          <th>Interview Questions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {applicantsByJob[job.id].map((a) => (
+        if (visibleJobs.length === 0) {
+          return (
+            <p>
+              {isRecruiter ? "No jobs posted yet." : "No jobs available yet."}
+            </p>
+          );
+        }
+
+        return visibleJobs.map((job) => (
+          <div
+            key={job.id}
+            style={{
+              border: `1px solid ${themeColor}`,
+              borderRadius: "8px",
+              padding: "15px",
+              marginBottom: "15px",
+            }}
+          >
+            <h4 style={{ marginTop: 0 }}>{job.title}</h4>
+            <p>{job.description}</p>
+
+            {isRecruiter ? (
+              <>
+                <button onClick={() => handleViewApplicants(job.id)}>
+                  View Applicants
+                </button>
+                {applicantsByJob[job.id] && (
+                  <div style={{ marginTop: "10px" }}>
+                    {applicantsByJob[job.id].length === 0 ? (
+                      <p style={{ color: "#777" }}>No applicants yet.</p>
+                    ) : (
+                      <table
+                        style={{ width: "100%", borderCollapse: "collapse" }}
+                      >
+                        <thead>
                           <tr
-                            key={a.application_id}
-                            style={{ verticalAlign: "top" }}
+                            style={{
+                              textAlign: "left",
+                              borderBottom: "1px solid #ccc",
+                            }}
                           >
-                            <td style={{ padding: "6px 0" }}>
-                              {a.candidate_name}
-                            </td>
-                            <td style={{ padding: "6px 0" }}>
-                              {a.score.toFixed(1)}%
-                            </td>
-                            <td style={{ padding: "6px 0" }}>
-                              {questionsByApplication[a.application_id] ? (
-                                <ol style={{ margin: 0, paddingLeft: "18px" }}>
-                                  {questionsByApplication[a.application_id].map(
-                                    (q, i) => (
+                            <th>Candidate</th>
+                            <th>Match Score</th>
+                            <th>Interview Questions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {applicantsByJob[job.id].map((a) => (
+                            <tr
+                              key={a.application_id}
+                              style={{ verticalAlign: "top" }}
+                            >
+                              <td style={{ padding: "6px 0" }}>
+                                {a.candidate_name}
+                              </td>
+                              <td style={{ padding: "6px 0" }}>
+                                {a.score.toFixed(1)}%
+                              </td>
+                              <td style={{ padding: "6px 0" }}>
+                                {questionsByApplication[a.application_id] ? (
+                                  <ol
+                                    style={{ margin: 0, paddingLeft: "18px" }}
+                                  >
+                                    {questionsByApplication[
+                                      a.application_id
+                                    ].map((q, i) => (
                                       <li
                                         key={i}
                                         style={{ marginBottom: "4px" }}
                                       >
                                         {q}
                                       </li>
-                                    ),
-                                  )}
-                                </ol>
-                              ) : (
-                                <button
-                                  disabled={
-                                    loadingQuestionsFor === a.application_id
-                                  }
-                                  onClick={() =>
-                                    handleGenerateQuestions(a.application_id)
-                                  }
-                                >
-                                  {loadingQuestionsFor === a.application_id
-                                    ? "Generating..."
-                                    : "Generate Interview Questions"}
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              )}
-            </>
-          ) : (
-            <button onClick={() => handleApply(job.id)}>Apply</button>
-          )}
-        </div>
-      ))}
+                                    ))}
+                                  </ol>
+                                ) : (
+                                  <button
+                                    disabled={
+                                      loadingQuestionsFor === a.application_id
+                                    }
+                                    onClick={() =>
+                                      handleGenerateQuestions(a.application_id)
+                                    }
+                                  >
+                                    {loadingQuestionsFor === a.application_id
+                                      ? "Generating..."
+                                      : "Generate Interview Questions"}
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <button onClick={() => handleApply(job.id)}>Apply</button>
+            )}
+          </div>
+        ));
+      })()}
     </div>
   );
 }
